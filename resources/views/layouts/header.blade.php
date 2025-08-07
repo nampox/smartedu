@@ -5,7 +5,7 @@
             <div class="bg-primary rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
                 <i class="bi bi-mortarboard-fill text-white"></i>
             </div>
-            <span class="fw-bold text-dark">EduPlatform</span>
+            <span class="fw-bold text-dark">SmartEdu</span>
         </a>
         
         <!-- Mobile Toggle -->
@@ -53,23 +53,23 @@
                                 <i class="bi bi-speedometer2"></i> Bảng điều khiển
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="" 
+                            <li><a class="dropdown-item" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                 <i class="bi bi-box-arrow-right"></i> Đăng xuất
                             </a></li>
                         </ul>
                     </li>
-                    <form id="logout-form" action="" method="POST" class="d-none">
+                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                         @csrf
                     </form>
                 @else
                     <li class="nav-item">
-                        <a class="nav-link text-dark" href="">
+                        <a class="nav-link text-dark" href="{{ route('login') }}">
                             Đăng nhập
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-dark ms-2" href="">
+                        <a class="btn btn-primary ms-2" href="{{ route('register') }}">
                             Đăng ký
                         </a>
                     </li>

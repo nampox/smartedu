@@ -52,6 +52,18 @@
                             <li><a class="dropdown-item" href="">
                                 <i class="bi bi-speedometer2"></i> Bảng điều khiển
                             </a></li>
+                            @if(Auth::user()->isAdmin())
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}">
+                                <i class="bi bi-shield-check"></i> Admin Dashboard
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.users') }}">
+                                <i class="bi bi-people"></i> Quản lý Users
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('logs.index') }}">
+                                <i class="bi bi-file-text"></i> Log Viewer
+                            </a></li>
+                            @endif
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

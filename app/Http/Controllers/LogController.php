@@ -2,40 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 
 class LogController extends Controller
 {
+    /**
+     * Hiển thị danh sách log với các bộ lọc
+     */
     public function index(Request $request)
     {
         $logPath = storage_path('logs/laravel.log');
         $date = $request->get('date', Carbon::now()->format('Y-m-d'));
         $level = $request->get('level', '');
         $search = $request->get('search', '');
-        
+
         $logs = [];
         $availableDates = [];
-        
-        // Get available dates from log files
+
+        // Lấy danh sách các ngày có log file
         $logFiles = File::glob(storage_path('logs/laravel-*.log'));
         foreach ($logFiles as $file) {
             if (preg_match('/laravel-(\d{4}-\d{2}-\d{2})\.log/', $file, $matches)) {
                 $availableDates[] = $matches[1];
             }
         }
-        
-        // Also check current laravel.log
+
+        // Kiểm tra file log hiện tại
         if (File::exists($logPath)) {
             $availableDates[] = Carbon::now()->format('Y-m-d');
         }
-        
+
         $availableDates = array_unique($availableDates);
         rsort($availableDates);
-        
-        // Read logs for selected date
+
+        // Đọc nội dung log cho ngày được chọn
         $selectedLogFile = storage_path("logs/laravel-{$date}.log");
         if (File::exists($selectedLogFile)) {
             $logContent = File::get($selectedLogFile);
@@ -44,15 +47,17 @@ class LogController extends Controller
         } else {
             $logContent = '';
         }
-        
-        // Parse log entries
-        if (!empty($logContent)) {
+
+        // Phân tích các entry log
+        if (! empty($logContent)) {
             $lines = explode("\n", $logContent);
             $currentEntry = '';
-            
+
             foreach ($lines as $line) {
+                // Kiểm tra xem dòng có phải là đầu của một log entry không
                 if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] (\w+)\.(\w+): (.+)$/', $line, $matches)) {
-                    if (!empty($currentEntry)) {
+                    // Xử lý entry trước đó nếu có
+                    if (! empty($currentEntry)) {
                         $parsedLog = $this->parseLogEntry($currentEntry);
                         if ($parsedLog && $this->shouldIncludeLog($parsedLog, $level, $search)) {
                             $logs[] = $parsedLog;
@@ -60,79 +65,91 @@ class LogController extends Controller
                     }
                     $currentEntry = $line;
                 } else {
-                    $currentEntry .= "\n" . $line;
+                    // Nối dòng vào entry hiện tại (cho stack trace, context, etc.)
+                    $currentEntry .= "\n".$line;
                 }
             }
-            
-            if (!empty($currentEntry)) {
+
+            // Xử lý entry cuối cùng
+            if (! empty($currentEntry)) {
                 $parsedLog = $this->parseLogEntry($currentEntry);
                 if ($parsedLog && $this->shouldIncludeLog($parsedLog, $level, $search)) {
                     $logs[] = $parsedLog;
                 }
             }
         }
-        
-        // Sort logs by timestamp (newest first)
-        usort($logs, function($a, $b) {
+
+        // Sắp xếp log theo thời gian (mới nhất trước)
+        usort($logs, function ($a, $b) {
             return strtotime($b['timestamp']) - strtotime($a['timestamp']);
         });
-        
+
         return view('logs.index', compact('logs', 'availableDates', 'date', 'level', 'search'));
     }
-    
+
+    /**
+     * Kiểm tra log có nên được hiển thị không dựa trên bộ lọc
+     */
     private function shouldIncludeLog($log, $level, $search)
     {
-        // Filter by level
-        if (!empty($level) && $log['level'] !== $level) {
+        // Lọc theo level (ERROR, WARNING, INFO, etc.)
+        if (! empty($level) && $log['level'] !== $level) {
             return false;
         }
-        
-        // Filter by search term
-        if (!empty($search)) {
+
+        // Lọc theo từ khóa tìm kiếm
+        if (! empty($search)) {
             $searchLower = strtolower($search);
             $messageLower = strtolower($log['message']);
             $channelLower = strtolower($log['channel']);
-            
-            if (strpos($messageLower, $searchLower) === false && 
+
+            // Tìm kiếm trong message hoặc channel
+            if (strpos($messageLower, $searchLower) === false &&
                 strpos($channelLower, $searchLower) === false) {
                 return false;
             }
         }
-        
+
         return true;
     }
-    
+
+    /**
+     * Phân tích một log entry thành các thành phần
+     */
     private function parseLogEntry($entry)
     {
+        // Sử dụng regex để tách các thành phần của log entry
         if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] (\w+)\.(\w+): (.+)$/', $entry, $matches)) {
             $timestamp = $matches[1];
             $level = strtoupper($matches[2]);
             $channel = $matches[3];
             $message = $matches[4];
-            
-            // Get additional lines
+
+            // Lấy các dòng bổ sung (stack trace, context, etc.)
             $lines = explode("\n", $entry);
             $additionalLines = array_slice($lines, 1);
-            
-            // Parse JSON context if exists
+
+            // Phân tích JSON context nếu có
             $context = null;
             $stackTrace = [];
-            
+
             foreach ($additionalLines as $line) {
                 $line = trim($line);
-                if (empty($line)) continue;
-                
-                // Check for JSON context
+                if (empty($line)) {
+                    continue;
+                }
+
+                // Kiểm tra JSON context (exception, file info, etc.)
                 if (strpos($line, '{"exception"') !== false || strpos($line, '{"file"') !== false) {
                     $context = $this->parseJsonContext($line);
                 }
-                
-                // Check for stack trace
+
+                // Kiểm tra stack trace (bắt đầu bằng #)
                 if (strpos($line, '#') === 0) {
                     $stackTrace[] = $line;
                 }
             }
-            
+
             return [
                 'timestamp' => $timestamp,
                 'level' => $level,
@@ -141,13 +158,16 @@ class LogController extends Controller
                 'additional_lines' => $additionalLines,
                 'context' => $context,
                 'stack_trace' => $stackTrace,
-                'level_class' => $this->getLevelClass($level)
+                'level_class' => $this->getLevelClass($level),
             ];
         }
-        
+
         return null;
     }
-    
+
+    /**
+     * Phân tích JSON context từ log entry
+     */
     private function parseJsonContext($jsonString)
     {
         try {
@@ -156,15 +176,18 @@ class LogController extends Controller
                 return $data;
             }
         } catch (Exception $e) {
-            // Ignore JSON parsing errors
+            // Bỏ qua lỗi phân tích JSON
         }
-        
+
         return null;
     }
-    
+
+    /**
+     * Lấy CSS class tương ứng với level của log
+     */
     private function getLevelClass($level)
     {
-        switch($level) {
+        switch ($level) {
             case 'ERROR':
             case 'CRITICAL':
             case 'ALERT':

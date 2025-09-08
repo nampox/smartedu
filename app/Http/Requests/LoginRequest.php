@@ -2,42 +2,25 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Services\ValidationService;
 
-class LoginRequest extends FormRequest
+class LoginRequest extends BaseFormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
+     * Lấy các quy tắc validation cho request đăng nhập
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        return [
-            'email' => 'required|email',
-            'password' => 'required',
-        ];
+        return ValidationService::getLoginRules();
     }
 
     /**
-     * Get custom messages for validator errors.
-     *
-     * @return array
+     * Lấy thông báo lỗi tùy chỉnh cho validator
      */
     public function messages(): array
     {
-        return [
-            'email.required' => 'Vui lòng nhập email',
-            'email.email' => 'Email không đúng định dạng',
-            'password.required' => 'Vui lòng nhập mật khẩu',
-        ];
+        return ValidationService::getLoginMessages();
     }
 }

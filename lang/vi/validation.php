@@ -195,4 +195,4 @@ return [
         'remember' => 'ghi nhớ đăng nhập',
     ],
 
-]; 
+];

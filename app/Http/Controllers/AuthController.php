@@ -2,15 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
+use App\Services\AuthService;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
+    protected $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /**
      * Hiển thị form đăng ký
      */
@@ -24,19 +29,8 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request)
     {
-        // Tạo user mới
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'password' => Hash::make($request->password),
-            'roles' => config('roles.user'), // Mặc định là user
-        ]);
+        $this->authService->register($request);
 
-        // Tự động đăng nhập sau khi đăng ký
-        Auth::login($user);
-
-        // Redirect với thông báo thành công
         return redirect()->route('home')
             ->with('success', 'Đăng ký tài khoản thành công! Chào mừng bạn đến với SmartEdu.');
     }
@@ -54,12 +48,7 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request)
     {
-        // Xác thực đăng nhập với Laravel Auth
-        $credentials = $request->only('email', 'password');
-        $remember = $request->has('remember');
-
-        if (Auth::attempt($credentials, $remember)) {
-            $request->session()->regenerate();
+        if ($this->authService->login($request)) {
             return redirect()->intended(route('home'))
                 ->with('success', 'Đăng nhập thành công!');
         }
@@ -74,8 +63,8 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
-        
+        $this->authService->logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
